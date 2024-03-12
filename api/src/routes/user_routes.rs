@@ -2,9 +2,11 @@ use super::AppState;
 use crate::handlers::error_handler::Errors;
 use actix_service::{Mutation, Query};
 use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder, ResponseError};
-use entity::user;
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
+use entity::{
+    paginated_model::{self, PaginatedModel},
+    user,
+};
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct Params {
@@ -38,9 +40,18 @@ async fn get_all_users(req: HttpRequest, data: web::Data<AppState>) -> impl Resp
         .map_err(|err| Errors::InternalError(err.to_string()));
 
     match response {
-        Ok((users, total_pages)) => HttpResponse::Ok().json(users),
+        Ok((users, total_pages)) => {
+            let paginated_model = PaginatedModel::new(users, total_pages, page, users_per_page);
+            HttpResponse::Ok().json(paginated_model)
+        }
         Err(error) => error.error_response(),
     }
+    /*
+        match response {
+            Ok((users, total_pages)) => HttpResponse::Ok().json(users),
+            Err(error) => error.error_response(),
+        }
+    */
 }
 pub fn routes() -> impl actix_web::dev::HttpServiceFactory {
     web::scope("users").service(create).service(get_all_users)
